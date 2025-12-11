@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::env;
 use std::time::Duration as StdDuration;
+use time::Duration as TimeDuration;
+// use time::OffsetDateTime;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -314,11 +316,12 @@ async fn google_callback(
     // Generate a session ID
     let session_id = format!("{}:{}", profile.email, token.access_token().secret());
 
-    // Create secure cookie
+    // Create secure cookie with expiration
     let cookie = Cookie::build(("sid", session_id.clone()))
         .path("/")
         .http_only(true)
-        .same_site(axum_extra::extract::cookie::SameSite::Lax);
+        .same_site(axum_extra::extract::cookie::SameSite::Lax)
+        .max_age(TimeDuration::seconds(secs));
 
     // Store user in database
     sqlx::query(
@@ -348,8 +351,26 @@ async fn google_callback(
     Ok((jar.add(cookie), Redirect::to("/protected")))
 }
 
-async fn logout(jar: PrivateCookieJar) -> impl IntoResponse {
-    let jar = jar.remove(Cookie::from("sid"));
+async fn logout(State(state): State<AppState>, jar: PrivateCookieJar) -> impl IntoResponse {
+    // Get the session ID from the cookie before removing it
+    if let Some(cookie) = jar.get("sid") {
+        let session_id = cookie.value();
+
+        // Delete the session from the database
+        let _ = sqlx::query("DELETE FROM sessions WHERE session_id = $1")
+            .bind(session_id)
+            .execute(&state.db)
+            .await;
+    }
+
+    // Remove the cookie by setting it with an expired date
+    let removal_cookie = Cookie::build(("sid", ""))
+        .path("/")
+        .http_only(true)
+        .same_site(axum_extra::extract::cookie::SameSite::Lax)
+        .max_age(TimeDuration::seconds(-1)); // Negative value to expire immediately
+
+    let jar = jar.add(removal_cookie);
     (jar, Redirect::to("/"))
 }
 

@@ -4,7 +4,8 @@ A complete OAuth2 authentication implementation using Axum web framework and Goo
 
 ## Features
 
-- Google OAuth2 authentication
+- Google and Twitter OAuth2 authentication
+- Multiple OAuth provider support
 - Protected routes that require authentication
 - Session management with PostgreSQL
 - Secure cookie-based sessions
@@ -47,7 +48,9 @@ CREATE DATABASE oauth_db;
 \q
 ```
 
-### 2. Google OAuth2 Setup
+### 2. OAuth2 Provider Setup
+
+#### Google OAuth2 Setup
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
@@ -62,6 +65,18 @@ CREATE DATABASE oauth_db;
      - `http://localhost:8000/api/auth/google_callback`
      - `http://localhost/api/auth/google_callback`
 
+#### Twitter OAuth2 Setup
+
+1. Go to [Twitter Developer Portal](https://developer.twitter.com/)
+2. Create a new app or select an existing one
+3. In your app settings, enable OAuth 2.0
+4. Set the following:
+   - **Redirect URL:**
+     - `http://localhost:8000/api/auth/twitter_callback`
+   - **App permissions:** Read (minimum)
+   - **Type of App:** Web App
+5. Copy your Client ID and Client Secret
+
 ### 3. Environment Variables
 
 Create a `.env` file in the project root with your credentials:
@@ -69,6 +84,8 @@ Create a `.env` file in the project root with your credentials:
 ```env
 GOOGLE_OAUTH_CLIENT_ID=your_google_client_id_here
 GOOGLE_OAUTH_CLIENT_SECRET=your_google_client_secret_here
+TWITTER_OAUTH_CLIENT_ID=your_twitter_client_id_here
+TWITTER_OAUTH_CLIENT_SECRET=your_twitter_client_secret_here
 DATABASE_URL=postgres://postgres:password@localhost/oauth_db
 ```
 
@@ -116,8 +133,11 @@ The server will start on `http://localhost:8000`
 ### Manual Testing
 
 1. Open your browser and navigate to `http://localhost:8000`
-2. Click "Sign in with Google" or visit the interactive demo at `/static/index.html`
-3. You'll be redirected to Google's login page
+2. Choose your authentication provider:
+   - Click "Sign in with Google" for Google OAuth
+   - Click "Sign in with Twitter" for Twitter OAuth
+   - Or visit the interactive demo at `/static/index.html`
+3. You'll be redirected to your chosen provider's login page
 4. After successful authentication, you'll be redirected back to the protected area
 5. Try accessing the protected routes:
    - `/protected` - Main protected area
@@ -150,8 +170,9 @@ This will test:
 
 ### Authentication Endpoints
 
-- `GET /api/auth/google_callback` - OAuth callback endpoint (handled automatically)
-- `GET /api/auth/logout` - Logout endpoint
+- `GET /api/auth/google_callback` - Google OAuth callback (handled automatically)
+- `GET /api/auth/twitter_callback` - Twitter OAuth callback (handled automatically)
+- `GET /api/auth/logout` - Logout endpoint (works for all providers)
 
 ### Protected Endpoints
 
@@ -183,6 +204,8 @@ oauth_axum/
 ### Core Features
 
 - ✅ Google OAuth2 authentication
+- ✅ Twitter OAuth2 authentication
+- ✅ Multi-provider support
 - ✅ Session management with PostgreSQL
 - ✅ Protected routes with middleware
 - ✅ Encrypted cookie sessions

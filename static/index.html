@@ -1,431 +1,834 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OAuth2 Demo with Axum</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>OAuth2 Authentication Demo - Axum</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
+            :root {
+                --primary: #667eea;
+                --primary-dark: #5a67d8;
+                --secondary: #764ba2;
+                --google-blue: #4285f4;
+                --google-hover: #357ae8;
+                --twitter-blue: #1da1f2;
+                --twitter-hover: #1a91da;
+                --success: #10b981;
+                --error: #ef4444;
+                --warning: #f59e0b;
+                --dark: #1f2937;
+                --gray: #6b7280;
+                --light-gray: #f3f4f6;
+                --white: #ffffff;
+                --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+                --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            }
 
-        .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 40px;
-            max-width: 500px;
-            width: 100%;
-            text-align: center;
-        }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }
 
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 2.5rem;
-        }
+            .main-container {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
 
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 1.1rem;
-        }
+            .header {
+                text-align: center;
+                color: white;
+                margin-bottom: 30px;
+            }
 
-        .status-card {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #667eea;
-        }
+            .header h1 {
+                font-size: 3rem;
+                font-weight: 800;
+                margin-bottom: 10px;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
 
-        .status-card.error {
-            border-left-color: #e74c3c;
-            background: #fff5f5;
-        }
+            .header p {
+                font-size: 1.2rem;
+                opacity: 0.95;
+            }
 
-        .status-card.success {
-            border-left-color: #27ae60;
-            background: #f0fff4;
-        }
+            .content-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                margin-bottom: 20px;
+            }
 
-        .google-login-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: #4285f4;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            margin: 10px 0;
-            width: 100%;
-        }
-
-        .google-login-btn:hover {
-            background: #357ae8;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(66, 133, 244, 0.3);
-        }
-
-        .google-login-btn svg {
-            margin-right: 10px;
-            width: 20px;
-            height: 20px;
-        }
-
-        .action-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 10px 20px;
-            font-size: 14px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            margin: 5px;
-            display: inline-block;
-        }
-
-        .action-btn:hover {
-            background: #5a67d8;
-            transform: translateY(-2px);
-        }
-
-        .action-btn.secondary {
-            background: #6c757d;
-        }
-
-        .action-btn.secondary:hover {
-            background: #5a6268;
-        }
-
-        .action-btn.danger {
-            background: #e74c3c;
-        }
-
-        .action-btn.danger:hover {
-            background: #c0392b;
-        }
-
-        .user-info {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-
-        .user-info h3 {
-            margin-bottom: 10px;
-        }
-
-        .user-email {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin: 10px 0;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .endpoints {
-            text-align: left;
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-
-        .endpoints h3 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-
-        .endpoint {
-            display: flex;
-            align-items: center;
-            margin: 10px 0;
-            padding: 10px;
-            background: white;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-        }
-
-        .endpoint:hover {
-            transform: translateX(5px);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .endpoint .method {
-            background: #667eea;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 3px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-right: 10px;
-            min-width: 40px;
-            text-align: center;
-        }
-
-        .endpoint .path {
-            color: #333;
-            font-family: 'Courier New', monospace;
-            flex: 1;
-        }
-
-        .endpoint .status {
-            font-size: 12px;
-            padding: 3px 8px;
-            border-radius: 3px;
-        }
-
-        .endpoint .status.protected {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .endpoint .status.public {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        #message {
-            margin: 20px 0;
-            padding: 15px;
-            border-radius: 5px;
-            display: none;
-        }
-
-        #message.show {
-            display: block;
-        }
-
-        #message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        #message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        #message.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🔐 OAuth2 Demo</h1>
-        <p class="subtitle">Secure Authentication with Google</p>
-
-        <div id="message"></div>
-
-        <div id="auth-status" class="status-card">
-            <div class="loading"></div>
-            <p>Checking authentication status...</p>
-        </div>
-
-        <div id="logged-out-content" style="display: none;">
-            <a href="/login" class="google-login-btn">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Sign in with Google
-            </a>
-        </div>
-
-        <div id="logged-in-content" style="display: none;">
-            <div class="user-info">
-                <h3>👤 Authenticated User</h3>
-                <p class="user-email" id="user-email"></p>
-            </div>
-
-            <div style="margin: 20px 0;">
-                <a href="/protected" class="action-btn">🔒 Protected Area</a>
-                <a href="/protected/profile" class="action-btn">👤 View Profile</a>
-                <button onclick="testProtectedAPI()" class="action-btn secondary">🧪 Test API</button>
-                <a href="/api/auth/logout" class="action-btn danger">🚪 Logout</a>
-            </div>
-        </div>
-
-        <div class="endpoints">
-            <h3>📍 Available Endpoints</h3>
-            <div class="endpoint">
-                <span class="method">GET</span>
-                <span class="path">/</span>
-                <span class="status public">Public</span>
-            </div>
-            <div class="endpoint">
-                <span class="method">GET</span>
-                <span class="path">/health</span>
-                <span class="status public">Public</span>
-            </div>
-            <div class="endpoint">
-                <span class="method">GET</span>
-                <span class="path">/login</span>
-                <span class="status public">Public</span>
-            </div>
-            <div class="endpoint">
-                <span class="method">GET</span>
-                <span class="path">/protected</span>
-                <span class="status protected">Auth Required</span>
-            </div>
-            <div class="endpoint">
-                <span class="method">GET</span>
-                <span class="path">/protected/profile</span>
-                <span class="status protected">Auth Required</span>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Function to show messages
-        function showMessage(message, type = 'info') {
-            const messageEl = document.getElementById('message');
-            messageEl.textContent = message;
-            messageEl.className = `show ${type}`;
-            setTimeout(() => {
-                messageEl.className = '';
-            }, 5000);
-        }
-
-        // Function to check authentication status
-        async function checkAuthStatus() {
-            try {
-                // Try to access the protected endpoint
-                const response = await fetch('/protected', {
-                    credentials: 'include',
-                    redirect: 'manual'
-                });
-
-                const authStatus = document.getElementById('auth-status');
-                const loggedOutContent = document.getElementById('logged-out-content');
-                const loggedInContent = document.getElementById('logged-in-content');
-
-                if (response.ok) {
-                    // User is authenticated
-                    const text = await response.text();
-
-                    // Extract email from the HTML response (this is a simple way, could be improved)
-                    const emailMatch = text.match(/<strong>(.*?)<\/strong>/);
-                    const email = emailMatch ? emailMatch[1] : 'User';
-
-                    authStatus.className = 'status-card success';
-                    authStatus.innerHTML = '✅ Authenticated';
-
-                    document.getElementById('user-email').textContent = email;
-                    loggedOutContent.style.display = 'none';
-                    loggedInContent.style.display = 'block';
-
-                    showMessage('You are successfully authenticated!', 'success');
-                } else {
-                    // User is not authenticated
-                    authStatus.className = 'status-card';
-                    authStatus.innerHTML = '🔓 Not Authenticated';
-
-                    loggedOutContent.style.display = 'block';
-                    loggedInContent.style.display = 'none';
+            @media (max-width: 768px) {
+                .content-grid {
+                    grid-template-columns: 1fr;
                 }
-            } catch (error) {
-                console.error('Error checking auth status:', error);
-                const authStatus = document.getElementById('auth-status');
-                authStatus.className = 'status-card error';
-                authStatus.innerHTML = '❌ Error checking authentication status';
-
-                document.getElementById('logged-out-content').style.display = 'block';
-                document.getElementById('logged-in-content').style.display = 'none';
             }
-        }
 
-        // Function to test protected API endpoint
-        async function testProtectedAPI() {
-            try {
-                const response = await fetch('/protected/profile', {
-                    credentials: 'include'
-                });
+            .card {
+                background: white;
+                border-radius: 12px;
+                padding: 30px;
+                box-shadow: var(--shadow-xl);
+                transition:
+                    transform 0.3s ease,
+                    box-shadow 0.3s ease;
+            }
 
-                if (response.ok) {
-                    showMessage('✅ Successfully accessed protected API!', 'success');
-                } else {
-                    showMessage('❌ Access denied to protected API', 'error');
+            .card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            }
+
+            .card h2 {
+                color: var(--dark);
+                font-size: 1.5rem;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .card h3 {
+                color: var(--dark);
+                font-size: 1.1rem;
+                margin-bottom: 15px;
+                margin-top: 20px;
+            }
+
+            /* Authentication Status */
+            .auth-status {
+                padding: 15px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                transition: all 0.3s ease;
+            }
+
+            .auth-status.checking {
+                background: var(--light-gray);
+                color: var(--gray);
+            }
+
+            .auth-status.authenticated {
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: white;
+            }
+
+            .auth-status.unauthenticated {
+                background: var(--light-gray);
+                color: var(--gray);
+            }
+
+            .auth-status .status-icon {
+                font-size: 1.5rem;
+            }
+
+            .auth-status .status-text {
+                flex: 1;
+            }
+
+            .auth-status .user-email {
+                font-weight: 600;
+            }
+
+            /* OAuth Buttons */
+            .oauth-buttons {
+                display: flex;
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+
+            .oauth-btn {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                padding: 14px 20px;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                color: white;
+                text-decoration: none;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .oauth-btn::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 0;
+                height: 100%;
+                background: rgba(255, 255, 255, 0.1);
+                transition: width 0.3s ease;
+            }
+
+            .oauth-btn:hover::before {
+                width: 100%;
+            }
+
+            .oauth-btn.google {
+                background: var(--google-blue);
+            }
+
+            .oauth-btn.google:hover {
+                background: var(--google-hover);
+                transform: translateY(-2px);
+                box-shadow: 0 10px 20px rgba(66, 133, 244, 0.3);
+            }
+
+            .oauth-btn.twitter {
+                background: var(--twitter-blue);
+            }
+
+            .oauth-btn.twitter:hover {
+                background: var(--twitter-hover);
+                transform: translateY(-2px);
+                box-shadow: 0 10px 20px rgba(29, 161, 242, 0.3);
+            }
+
+            .oauth-btn svg {
+                width: 20px;
+                height: 20px;
+            }
+
+            /* Endpoint Testing */
+            .endpoint-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .endpoint-item {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                padding: 12px 15px;
+                background: var(--light-gray);
+                border-radius: 8px;
+                transition: all 0.3s ease;
+                text-decoration: none;
+                color: var(--dark);
+            }
+
+            .endpoint-item:hover {
+                background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+                color: white;
+                transform: translateX(5px);
+            }
+
+            .endpoint-item .method {
+                background: var(--primary);
+                color: white;
+                padding: 4px 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 700;
+                min-width: 50px;
+                text-align: center;
+            }
+
+            .endpoint-item:hover .method {
+                background: white;
+                color: var(--primary);
+            }
+
+            .endpoint-item .path {
+                flex: 1;
+                font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+                font-size: 14px;
+            }
+
+            .endpoint-item .badge {
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+
+            .endpoint-item .badge.public {
+                background: var(--success);
+                color: white;
+            }
+
+            .endpoint-item .badge.protected {
+                background: var(--warning);
+                color: white;
+            }
+
+            .endpoint-item:hover .badge {
+                background: white;
+                color: var(--primary);
+            }
+
+            /* Action Buttons */
+            .action-buttons {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                margin-top: 20px;
+            }
+
+            .btn {
+                padding: 10px 20px;
+                border: none;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                text-decoration: none;
+                transition: all 0.3s ease;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .btn-primary {
+                background: var(--primary);
+                color: white;
+            }
+
+            .btn-primary:hover {
+                background: var(--primary-dark);
+                transform: translateY(-1px);
+            }
+
+            .btn-success {
+                background: var(--success);
+                color: white;
+            }
+
+            .btn-success:hover {
+                background: #059669;
+                transform: translateY(-1px);
+            }
+
+            .btn-danger {
+                background: var(--error);
+                color: white;
+            }
+
+            .btn-danger:hover {
+                background: #dc2626;
+                transform: translateY(-1px);
+            }
+
+            .btn-secondary {
+                background: var(--gray);
+                color: white;
+            }
+
+            .btn-secondary:hover {
+                background: #4b5563;
+                transform: translateY(-1px);
+            }
+
+            /* Messages */
+            .message {
+                padding: 15px 20px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                display: none;
+                align-items: center;
+                gap: 10px;
+                animation: slideIn 0.3s ease;
+            }
+
+            .message.show {
+                display: flex;
+            }
+
+            .message.success {
+                background: #d1fae5;
+                color: #065f46;
+                border: 1px solid #6ee7b7;
+            }
+
+            .message.error {
+                background: #fee2e2;
+                color: #991b1b;
+                border: 1px solid #fca5a5;
+            }
+
+            .message.info {
+                background: #dbeafe;
+                color: #1e40af;
+                border: 1px solid #93c5fd;
+            }
+
+            @keyframes slideIn {
+                from {
+                    transform: translateY(-10px);
+                    opacity: 0;
                 }
-            } catch (error) {
-                showMessage('❌ Error accessing protected API: ' + error.message, 'error');
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
             }
-        }
 
-        // Function to check health endpoint
-        async function checkHealth() {
-            try {
-                const response = await fetch('/health');
-                const data = await response.json();
-                console.log('Health check:', data);
-            } catch (error) {
-                console.error('Health check failed:', error);
+            /* Loading Spinner */
+            .spinner {
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                border: 3px solid var(--light-gray);
+                border-top-color: var(--primary);
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
             }
-        }
 
-        // Check for OAuth callback parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('code')) {
-            showMessage('Processing authentication...', 'info');
-        }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            checkAuthStatus();
-            checkHealth();
+            /* Full width card */
+            .full-width-card {
+                grid-column: 1 / -1;
+            }
 
-            // Refresh auth status every 30 seconds
-            setInterval(checkAuthStatus, 30000);
-        });
+            /* Provider Badge */
+            .provider-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px 10px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+                background: white;
+                color: var(--primary);
+            }
 
-        // Handle browser back button after OAuth
-        window.addEventListener('popstate', () => {
-            checkAuthStatus();
-        });
-    </script>
-</body>
+            /* Quick Test Section */
+            .quick-test {
+                background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+                padding: 15px;
+                border-radius: 8px;
+                margin-top: 15px;
+            }
+
+            .quick-test h4 {
+                color: var(--dark);
+                margin-bottom: 10px;
+                font-size: 0.9rem;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .quick-test .test-buttons {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+
+            .test-btn {
+                padding: 6px 12px;
+                border: 1px solid var(--gray);
+                background: white;
+                color: var(--dark);
+                border-radius: 4px;
+                font-size: 13px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                text-decoration: none;
+            }
+
+            .test-btn:hover {
+                background: var(--primary);
+                color: white;
+                border-color: var(--primary);
+                transform: translateY(-1px);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="main-container">
+            <header class="header">
+                <h1>🔐 OAuth2 Authentication Demo</h1>
+                <p>Secure multi-provider authentication with Axum & Rust</p>
+            </header>
+
+            <div class="content-grid">
+                <!-- Authentication Card -->
+                <div class="card">
+                    <h2>
+                        <span>🔑</span>
+                        Authentication
+                    </h2>
+
+                    <div id="auth-status" class="auth-status checking">
+                        <span class="status-icon">
+                            <div class="spinner"></div>
+                        </span>
+                        <div class="status-text">Checking authentication status...</div>
+                    </div>
+
+                    <div id="message" class="message"></div>
+
+                    <div id="logged-out-section" style="display: none">
+                        <h3>Sign in with your preferred provider:</h3>
+                        <div class="oauth-buttons">
+                            <a href="/login" class="oauth-btn google">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path
+                                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                                    />
+                                    <path
+                                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                                    />
+                                    <path
+                                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                                    />
+                                    <path
+                                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                                    />
+                                </svg>
+                                Google
+                            </a>
+                            <a href="/login" class="oauth-btn twitter">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path
+                                        d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"
+                                    />
+                                </svg>
+                                Twitter
+                            </a>
+                        </div>
+
+                        <div class="quick-test">
+                            <h4>Quick Test Links</h4>
+                            <div class="test-buttons">
+                                <a href="/protected" class="test-btn">Try Protected Route</a>
+                                <a href="/protected/profile" class="test-btn">Try Profile Route</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="logged-in-section" style="display: none">
+                        <h3>Welcome back!</h3>
+                        <div class="auth-status authenticated">
+                            <span class="status-icon">✅</span>
+                            <div class="status-text">
+                                <div>You are authenticated as:</div>
+                                <div class="user-email" id="user-email">loading...</div>
+                                <div id="provider-badge" class="provider-badge" style="margin-top: 8px"></div>
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <a href="/protected" class="btn btn-primary"> 🔒 Protected Area </a>
+                            <a href="/protected/profile" class="btn btn-success"> 👤 My Profile </a>
+                            <button onclick="testAPI()" class="btn btn-secondary">🧪 Test API</button>
+                            <a href="/api/auth/logout" class="btn btn-danger"> 🚪 Sign Out </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Endpoints Testing Card -->
+                <div class="card">
+                    <h2>
+                        <span>🧪</span>
+                        API Endpoints
+                    </h2>
+
+                    <h3>Public Endpoints</h3>
+                    <div class="endpoint-list">
+                        <a href="/" class="endpoint-item">
+                            <span class="method">GET</span>
+                            <span class="path">/</span>
+                            <span class="badge public">public</span>
+                        </a>
+                        <a href="/health" class="endpoint-item" onclick="checkHealth(event)">
+                            <span class="method">GET</span>
+                            <span class="path">/health</span>
+                            <span class="badge public">public</span>
+                        </a>
+                        <a href="/login" class="endpoint-item">
+                            <span class="method">GET</span>
+                            <span class="path">/login</span>
+                            <span class="badge public">public</span>
+                        </a>
+                    </div>
+
+                    <h3>Protected Endpoints</h3>
+                    <div class="endpoint-list">
+                        <a href="/protected" class="endpoint-item">
+                            <span class="method">GET</span>
+                            <span class="path">/protected</span>
+                            <span class="badge protected">auth</span>
+                        </a>
+                        <a href="/protected/profile" class="endpoint-item">
+                            <span class="method">GET</span>
+                            <span class="path">/protected/profile</span>
+                            <span class="badge protected">auth</span>
+                        </a>
+                    </div>
+
+                    <h3>Authentication Endpoints</h3>
+                    <div class="endpoint-list">
+                        <a
+                            href="#"
+                            class="endpoint-item"
+                            onclick="showMessage('OAuth callback endpoint - handled automatically', 'info'); return false;"
+                        >
+                            <span class="method">GET</span>
+                            <span class="path">/api/auth/google_callback</span>
+                            <span class="badge public">oauth</span>
+                        </a>
+                        <a
+                            href="#"
+                            class="endpoint-item"
+                            onclick="showMessage('OAuth callback endpoint - handled automatically', 'info'); return false;"
+                        >
+                            <span class="method">GET</span>
+                            <span class="path">/api/auth/twitter_callback</span>
+                            <span class="badge public">oauth</span>
+                        </a>
+                        <a href="/api/auth/logout" class="endpoint-item">
+                            <span class="method">GET</span>
+                            <span class="path">/api/auth/logout</span>
+                            <span class="badge protected">auth</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- System Status Card -->
+                <div class="card full-width-card">
+                    <h2>
+                        <span>📊</span>
+                        System Status
+                    </h2>
+
+                    <div id="system-status" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px">
+                        <div style="padding: 15px; background: var(--light-gray); border-radius: 8px">
+                            <div style="font-size: 0.875rem; color: var(--gray); margin-bottom: 5px">Service</div>
+                            <div style="font-size: 1.25rem; font-weight: 600; color: var(--dark)" id="service-status">Checking...</div>
+                        </div>
+                        <div style="padding: 15px; background: var(--light-gray); border-radius: 8px">
+                            <div style="font-size: 0.875rem; color: var(--gray); margin-bottom: 5px">Database</div>
+                            <div style="font-size: 1.25rem; font-weight: 600; color: var(--dark)" id="db-status">Checking...</div>
+                        </div>
+                        <div style="padding: 15px; background: var(--light-gray); border-radius: 8px">
+                            <div style="font-size: 0.875rem; color: var(--gray); margin-bottom: 5px">Auth Providers</div>
+                            <div style="font-size: 1.25rem; font-weight: 600; color: var(--dark)" id="providers-status">Checking...</div>
+                        </div>
+                        <div style="padding: 15px; background: var(--light-gray); border-radius: 8px">
+                            <div style="font-size: 0.875rem; color: var(--gray); margin-bottom: 5px">Last Check</div>
+                            <div style="font-size: 1.25rem; font-weight: 600; color: var(--dark)" id="last-check">Never</div>
+                        </div>
+                    </div>
+
+                    <div class="quick-test" style="margin-top: 20px">
+                        <h4>Quick Actions</h4>
+                        <div class="test-buttons">
+                            <button onclick="checkAuthStatus()" class="test-btn">Refresh Auth Status</button>
+                            <button onclick="checkHealth()" class="test-btn">Check Health</button>
+                            <button onclick="testProtectedEndpoint()" class="test-btn">Test Protected Endpoint</button>
+                            <button onclick="clearMessages()" class="test-btn">Clear Messages</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Global state
+            let isAuthenticated = false;
+            let userEmail = null;
+            let authProvider = null;
+
+            // Message handling
+            function showMessage(message, type = "info") {
+                const messageEl = document.getElementById("message");
+                messageEl.textContent = message;
+                messageEl.className = `message show ${type}`;
+
+                setTimeout(() => {
+                    messageEl.className = "message";
+                }, 5000);
+            }
+
+            function clearMessages() {
+                const messageEl = document.getElementById("message");
+                messageEl.className = "message";
+            }
+
+            // Authentication check
+            async function checkAuthStatus() {
+                const authStatus = document.getElementById("auth-status");
+                const loggedOutSection = document.getElementById("logged-out-section");
+                const loggedInSection = document.getElementById("logged-in-section");
+
+                authStatus.className = "auth-status checking";
+                authStatus.innerHTML =
+                    '<span class="status-icon"><div class="spinner"></div></span><div class="status-text">Checking authentication...</div>';
+
+                try {
+                    const response = await fetch("/protected", {
+                        credentials: "include",
+                        redirect: "manual",
+                    });
+
+                    if (response.ok) {
+                        const html = await response.text();
+                        const emailMatch = html.match(/<strong>(.*?)<\/strong>/);
+                        userEmail = emailMatch ? emailMatch[1] : "Unknown User";
+
+                        // Detect provider
+                        if (userEmail.includes("@twitter.local")) {
+                            authProvider = "Twitter";
+                        } else {
+                            authProvider = "Google";
+                        }
+
+                        isAuthenticated = true;
+
+                        authStatus.className = "auth-status authenticated";
+                        authStatus.innerHTML = `
+                        <span class="status-icon">✅</span>
+                        <div class="status-text">
+                            <div>Authenticated via ${authProvider}</div>
+                        </div>
+                    `;
+
+                        document.getElementById("user-email").textContent = userEmail;
+                        document.getElementById("provider-badge").innerHTML = `
+                        ${authProvider === "Twitter" ? "🐦" : "🔍"} ${authProvider}
+                    `;
+
+                        loggedOutSection.style.display = "none";
+                        loggedInSection.style.display = "block";
+                    } else {
+                        isAuthenticated = false;
+
+                        authStatus.className = "auth-status unauthenticated";
+                        authStatus.innerHTML = `
+                        <span class="status-icon">🔓</span>
+                        <div class="status-text">Not authenticated</div>
+                    `;
+
+                        loggedOutSection.style.display = "block";
+                        loggedInSection.style.display = "none";
+                    }
+                } catch (error) {
+                    console.error("Auth check error:", error);
+                    authStatus.className = "auth-status unauthenticated";
+                    authStatus.innerHTML = `
+                    <span class="status-icon">❌</span>
+                    <div class="status-text">Error checking authentication</div>
+                `;
+
+                    loggedOutSection.style.display = "block";
+                    loggedInSection.style.display = "none";
+                }
+            }
+
+            // Health check
+            async function checkHealth(event) {
+                if (event) event.preventDefault();
+
+                try {
+                    const response = await fetch("/health");
+                    const data = await response.json();
+
+                    document.getElementById("service-status").textContent = data.status || "Unknown";
+                    document.getElementById("db-status").textContent = data.database || "Unknown";
+                    document.getElementById("providers-status").textContent = data.providers ? data.providers.join(", ") : "Unknown";
+
+                    const now = new Date();
+                    document.getElementById("last-check").textContent = now.toLocaleTimeString();
+
+                    showMessage("Health check successful!", "success");
+                    console.log("Health data:", data);
+                } catch (error) {
+                    console.error("Health check failed:", error);
+                    showMessage("Health check failed: " + error.message, "error");
+                }
+            }
+
+            // Test API
+            async function testAPI() {
+                try {
+                    const response = await fetch("/protected/profile", {
+                        credentials: "include",
+                    });
+
+                    if (response.ok) {
+                        showMessage("✅ API test successful! Protected endpoint accessed.", "success");
+                    } else {
+                        showMessage("❌ API test failed: Access denied", "error");
+                    }
+                } catch (error) {
+                    showMessage("❌ API test error: " + error.message, "error");
+                }
+            }
+
+            // Test protected endpoint
+            async function testProtectedEndpoint() {
+                if (!isAuthenticated) {
+                    showMessage("You need to be authenticated first!", "error");
+                    return;
+                }
+
+                try {
+                    const response = await fetch("/protected", {
+                        credentials: "include",
+                    });
+
+                    if (response.ok) {
+                        showMessage("✅ Protected endpoint test successful!", "success");
+                    } else {
+                        showMessage("❌ Protected endpoint test failed", "error");
+                    }
+                } catch (error) {
+                    showMessage("❌ Test error: " + error.message, "error");
+                }
+            }
+
+            // Check for OAuth callback
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has("code")) {
+                showMessage("Processing authentication...", "info");
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            // Initialize
+            document.addEventListener("DOMContentLoaded", () => {
+                checkAuthStatus();
+                checkHealth();
+
+                // Periodic checks
+                setInterval(() => {
+                    checkAuthStatus();
+                    checkHealth();
+                }, 30000);
+            });
+
+            // Handle back button
+            window.addEventListener("popstate", checkAuthStatus);
+        </script>
+    </body>
 </html>

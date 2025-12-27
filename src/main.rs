@@ -1,6 +1,6 @@
 use anyhow::Result;
 use axum::{
-    extract::{FromRef, FromRequest, FromRequestParts, Query, Request, State},
+    extract::{Query, Request, State},
     http::StatusCode,
     middleware,
     response::{Html, IntoResponse, Redirect, Response},
@@ -10,12 +10,12 @@ use axum::{
 use axum_extra::extract::cookie::{Cookie, Key, PrivateCookieJar};
 use chrono::{Duration, Local};
 use oauth2::{
-    basic::BasicClient, reqwest::async_http_client, AuthUrl, AuthorizationCode, ClientId,
-    ClientSecret, PkceCodeChallenge, RedirectUrl, TokenResponse, TokenUrl,
+    basic::BasicClient, reqwest::async_http_client, AuthorizationCode, PkceCodeChallenge,
+    TokenResponse,
 };
 use reqwest::Client as ReqwestClient;
-use serde::{Deserialize, Serialize};
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use serde::Deserialize;
+use sqlx::postgres::PgPoolOptions;
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
@@ -28,18 +28,14 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 mod errors;
 use errors::ApiError;
 
-#[derive(Clone)]
-pub struct AppState {
-    db: PgPool,
-    ctx: ReqwestClient,
-    key: Key,
-}
+mod state;
+use state::AppState;
 
-impl FromRef<AppState> for Key {
-    fn from_ref(state: &AppState) -> Self {
-        state.key.clone()
-    }
-}
+mod handlers;
+use handlers::UserProfile;
+
+mod oauth;
+use oauth::*;
 
 #[derive(Clone)]
 pub struct OAuthClients {
@@ -60,30 +56,6 @@ type PkceVerifiers = Arc<tokio::sync::Mutex<HashMap<String, String>>>;
 pub struct AuthRequest {
     code: String,
     state: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, sqlx::FromRow)]
-pub struct UserProfile {
-    pub email: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GoogleUserInfo {
-    pub email: String,
-    pub name: Option<String>,
-    pub picture: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TwitterUserInfo {
-    pub data: TwitterUserData,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TwitterUserData {
-    pub id: String,
-    pub name: String,
-    pub username: String,
 }
 
 #[tokio::main]
@@ -173,40 +145,6 @@ async fn main() -> Result<()> {
         .expect("Failed to start server");
 
     Ok(())
-}
-
-fn build_google_oauth_client(client_id: String, client_secret: String) -> BasicClient {
-    let redirect_url = "http://localhost:8000/api/auth/google_callback".to_string();
-
-    let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
-        .expect("Invalid authorization endpoint URL");
-    let token_url = TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
-        .expect("Invalid token endpoint URL");
-
-    BasicClient::new(
-        ClientId::new(client_id),
-        Some(ClientSecret::new(client_secret)),
-        auth_url,
-        Some(token_url),
-    )
-    .set_redirect_uri(RedirectUrl::new(redirect_url).unwrap())
-}
-
-fn build_twitter_oauth_client(client_id: String, client_secret: String) -> BasicClient {
-    let redirect_url = "http://localhost:8000/api/auth/twitter_callback".to_string();
-
-    let auth_url = AuthUrl::new("https://twitter.com/i/oauth2/authorize".to_string())
-        .expect("Invalid authorization endpoint URL");
-    let token_url = TokenUrl::new("https://api.twitter.com/2/oauth2/token".to_string())
-        .expect("Invalid token endpoint URL");
-
-    BasicClient::new(
-        ClientId::new(client_id),
-        Some(ClientSecret::new(client_secret)),
-        auth_url,
-        Some(token_url),
-    )
-    .set_redirect_uri(RedirectUrl::new(redirect_url).unwrap())
 }
 
 fn init_router(
@@ -786,39 +724,5 @@ async fn check_authenticated(
             let jar = jar.add(removal_cookie);
             Ok((jar, Redirect::to("/login")).into_response())
         }
-    }
-}
-
-#[axum::async_trait]
-impl FromRequest<AppState> for UserProfile {
-    type Rejection = ApiError;
-
-    async fn from_request(req: Request, state: &AppState) -> Result<Self, Self::Rejection> {
-        let (mut parts, _body) = req.into_parts();
-
-        let jar: PrivateCookieJar<Key> = PrivateCookieJar::from_request_parts(&mut parts, state)
-            .await
-            .map_err(|_| ApiError::Unauthorized)?;
-
-        let Some(cookie) = jar.get("sid").map(|cookie| cookie.value().to_owned()) else {
-            return Err(ApiError::Unauthorized);
-        };
-
-        let user = sqlx::query_as::<_, UserProfile>(
-            "SELECT users.email
-             FROM sessions
-             LEFT JOIN users ON sessions.user_id = users.id
-             WHERE sessions.session_id = $1 AND sessions.expires_at > NOW()
-             LIMIT 1",
-        )
-        .bind(cookie)
-        .fetch_one(&state.db)
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ApiError::Unauthorized,
-            _ => ApiError::Database(e),
-        })?;
-
-        Ok(user)
     }
 }

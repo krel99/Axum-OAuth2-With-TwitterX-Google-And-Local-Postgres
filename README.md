@@ -143,24 +143,6 @@ The server will start on `http://localhost:8000`
    - `/protected` - Main protected area
    - `/protected/profile` - User profile page
 
-### Automated Testing
-
-Run the test script to verify all endpoints:
-
-```bash
-./test_oauth.sh
-```
-
-This will test:
-
-- Public endpoints availability
-- Protected endpoints authentication requirements
-- Health check functionality
-- Static file serving
-- Security headers
-
-## API Endpoints
-
 ### Public Endpoints
 
 - `GET /` - Homepage with interactive demo
@@ -182,21 +164,47 @@ This will test:
 ## Project Structure
 
 ```
-oauth_axum/
-├── src/
-│   ├── main.rs        # Main application with routes and OAuth logic
-│   └── errors.rs      # Error handling
-├── migrations/
-│   └── *.sql         # Database migrations
-├── static/
-│   └── index.html    # Interactive demo interface
-├── Cargo.toml        # Rust dependencies
-├── docker-compose.yml # Docker setup for PostgreSQL
-├── run.sh           # Quick start script
-├── test_oauth.sh    # API testing script
-├── .env             # Environment variables (not committed)
-├── .gitignore       # Git ignore rules
-└── README.md        # This file
+src/
+├── main.rs                 # Application entry point and server setup
+├── config/
+│   ├── mod.rs              # Configuration module
+│   └── settings.rs         # App settings and environment variables
+├── db/
+│   ├── mod.rs              # Database module
+│   ├── connection.rs       # Database connection pool
+│   └── migrations.rs       # Migration runner
+├── models/
+│   ├── mod.rs              # Models module
+│   ├── user.rs             # User model and related types
+│   └── session.rs          # Session model
+├── handlers/
+│   ├── mod.rs              # Handlers module
+│   ├── auth.rs             # Authentication handlers (login, logout, callbacks)
+│   ├── health.rs           # Health check endpoint
+│   ├── home.rs             # Homepage handler
+│   └── user.rs             # User-related handlers (profile, protected)
+├── middleware/
+│   ├── mod.rs              # Middleware module
+│   └── auth.rs             # Authentication middleware
+├── oauth/
+│   ├── mod.rs              # OAuth module
+│   ├── google.rs           # Google OAuth client and logic
+│   ├── twitter.rs          # Twitter OAuth client and logic
+│   └── providers.rs        # Common OAuth provider traits/interfaces
+├── services/
+│   ├── mod.rs              # Services module
+│   ├── auth_service.rs     # Authentication business logic
+│   └── user_service.rs     # User management logic
+├── state/
+│   ├── mod.rs              # Application state module
+│   └── app_state.rs        # AppState and related types
+├── utils/
+│   ├── mod.rs              # Utilities module
+│   └── extractor.rs        # Custom extractors (UserProfile extractor)
+├── routes/
+│   ├── mod.rs              # Routes module
+│   └── router.rs           # Router configuration
+└── errors.rs               # Error types and handling (already exists)
 ```
 
 ## Features

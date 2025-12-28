@@ -24,9 +24,6 @@ pub enum ApiError {
     #[error("Unauthorized")]
     Unauthorized,
 
-    #[error("Internal server error")]
-    InternalServerError,
-
     #[error("Bad request: {0}")]
     BadRequest(String),
 }
@@ -58,10 +55,6 @@ impl IntoResponse for ApiError {
             Self::Unauthorized => (
                 StatusCode::UNAUTHORIZED,
                 "You are not authorized to access this resource".to_string(),
-            ),
-            Self::InternalServerError => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Internal server error".to_string(),
             ),
             Self::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
         };

@@ -7,8 +7,15 @@ A working implementation of OAuth2 authentication using Rust's Axum web framewor
 - OAuth2 flow implementation with multiple providers (Google & Twitter)
 - Session management with PostgreSQL and secure cookies
 - Protected routes using middleware
-- PKCE flow for enhanced security (Twitter)
+- PKCE flow (Twitter)
 - User profile extraction from OAuth providers
+
+### Known Issues (Shortcuts)
+
+- Permissive CORS policy is insecure for production.
+- PKCE verifier uses static key
+- Missing CSRF state validation in Twitter callback.
+- Hardcoded redirect URIs
 
 ## Setup
 
